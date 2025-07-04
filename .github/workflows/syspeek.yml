@@ -1,84 +1,83 @@
 name: Build & Release SysPeek for multiple architectures
 
 on:
-push:
-tags:
-- 'v*'
+  push:
+    tags:
+      - 'v*'
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-strategy:  
-  matrix:  
-    arch: [x86_64, aarch64, arm]  
+    strategy:  
+      matrix:  
+        arch: [x86_64, aarch64, arm]  
 
-steps:  
-- name: Checkout repository  
-  uses: actions/checkout@v3  
+    steps:  
+      - name: Checkout repository  
+        uses: actions/checkout@v3  
 
-- name: Install Nim compiler and tools  
-  run: |  
-    sudo apt update  
-    sudo apt install -y nim gcc git curl build-essential  
-    nim --version  
+      - name: Install Nim compiler and tools  
+        run: |  
+          sudo apt update  
+          sudo apt install -y nim gcc git curl build-essential  
+          nim --version  
 
-- name: Set up QEMU (for ARM emulation)  
-  uses: docker/setup-qemu-action@v2  
+      - name: Set up QEMU (for ARM emulation)  
+        uses: docker/setup-qemu-action@v2  
 
-- name: Install cross-compilers (for arm/aarch64)  
-  run: |  
-    sudo apt-get update  
-    if [ "${{ matrix.arch }}" = "aarch64" ]; then  
-      sudo apt-get install -y gcc-aarch64-linux-gnu  
-    elif [ "${{ matrix.arch }}" = "arm" ]; then  
-      sudo apt-get install -y gcc-arm-linux-gnueabihf  
-    else  
-      echo "x86_64 build, no cross-compiler needed"  
-    fi  
+      - name: Install cross-compilers (for arm/aarch64)  
+        run: |  
+          sudo apt-get update  
+          if [ "${{ matrix.arch }}" = "aarch64" ]; then  
+            sudo apt-get install -y gcc-aarch64-linux-gnu  
+          elif [ "${{ matrix.arch }}" = "arm" ]; then  
+            sudo apt-get install -y gcc-arm-linux-gnueabihf  
+          else  
+            echo "x86_64 build, no cross-compiler needed"  
+          fi  
 
-- name: Build SysPeek for ${{ matrix.arch }}  
-  run: |  
-    case ${{ matrix.arch }} in  
-      aarch64)  
-        nim c --os:linux --cpu:arm64 --out:syspeek-${{ matrix.arch }} src/syspeek.nim  
-        ;;  
-      arm)  
-        nim c --os:linux --cpu:arm --out:syspeek-${{ matrix.arch }} src/syspeek.nim  
-        ;;  
-      x86_64)  
-        nim c --os:linux --cpu:amd64 --out:syspeek-${{ matrix.arch }} src/syspeek.nim  
-        ;;  
-      *)  
-        echo "Unsupported architecture"  
-        exit 1  
-        ;;  
-    esac  
+      - name: Build SysPeek for ${{ matrix.arch }}  
+        run: |  
+          case ${{ matrix.arch }} in  
+            aarch64)  
+              nim c --os:linux --cpu:arm64 --out:syspeek-${{ matrix.arch }} src/syspeek.nim  
+              ;;  
+            arm)  
+              nim c --os:linux --cpu:arm --out:syspeek-${{ matrix.arch }} src/syspeek.nim  
+              ;;  
+            x86_64)  
+              nim c --os:linux --cpu:amd64 --out:syspeek-${{ matrix.arch }} src/syspeek.nim  
+              ;;  
+            *)  
+              echo "Unsupported architecture"  
+              exit 1  
+              ;;  
+          esac  
 
-- name: Zip the binary  
-  run: zip syspeek-${{ matrix.arch }}.zip syspeek-${{ matrix.arch }}  
+      - name: Zip the binary  
+        run: zip syspeek-${{ matrix.arch }}.zip syspeek-${{ matrix.arch }}  
 
-- name: Upload artifact for ${{ matrix.arch }}  
-  uses: actions/upload-artifact@v3  
-  with:  
-    name: syspeek-${{ matrix.arch }}  
-    path: syspeek-${{ matrix.arch }}.zip
+      - name: Upload artifact for ${{ matrix.arch }}  
+        uses: actions/upload-artifact@v3  
+        with:  
+          name: syspeek-${{ matrix.arch }}  
+          path: syspeek-${{ matrix.arch }}.zip
 
-release:
-needs: build
-runs-on: ubuntu-latest
-steps:
-- name: Download artifacts
-uses: actions/download-artifact@v3
-with:
-path: ./artifacts
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./artifacts
 
-- name: Create GitHub Release  
-    id: create_release  
-    uses: softprops/action-gh-release@v1  
-    with:  
-      tag_name: ${{ github.ref_name }}  
-      files: ./artifacts/*.zip  
-    env:  
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }
-      
+      - name: Create GitHub Release  
+        id: create_release  
+        uses: softprops/action-gh-release@v1  
+        with:  
+          tag_name: ${{ github.ref_name }}  
+          files: ./artifacts/*.zip  
+        env:  
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
